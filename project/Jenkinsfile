@@ -1,4 +1,4 @@
-pipeline {
+ipeline {
     agent any
 
     environment {
@@ -9,10 +9,6 @@ pipeline {
         skipDefaultCheckout(false)
         disableConcurrentBuilds()
         timeout(time: 1, unit: 'HOURS')
-    }
-
-    triggers {
-        pollSCM('H/15 * * * *')
     }
 
     stages {
@@ -26,41 +22,22 @@ pipeline {
             steps {
                 script {
                     try {
-                        // Check available Python versions
-                        def pythonCmd = sh(
-                            script: """
-                                if command -v python${PYTHON_VERSION} &> /dev/null; then
-                                    echo "python${PYTHON_VERSION}"
-                                elif command -v python3 &> /dev/null; then
-                                    echo "python3"
-                                elif command -v python &> /dev/null; then
-                                    echo "python"
-                                else
-                                    echo "none"
-                                fi
-                            """,
-                            returnStdout: true
-                        ).trim()
-
-                        if (pythonCmd == "none") {
-                            error "No Python installation found. Please install Python ${PYTHON_VERSION} or Python 3.x"
-                        }
-
-                        // Check Python version
-                        def pythonVersion = sh(
-                            script: "${pythonCmd} --version",
-                            returnStdout: true
-                        ).trim()
-                        echo "Using ${pythonVersion}"
-
-                        // Setup virtual environment
-                        sh """
-                            ${pythonCmd} -m venv venv || python3 -m venv venv
+                        // Try to install Python if not available
+                        sh '''
+                            if ! command -v python3 &> /dev/null; then
+                                sudo apt-get update
+                                sudo apt-get install -y python3 python3-venv python3-pip
+                            fi
+                        '''
+                        
+                        // Create and activate virtual environment
+                        sh '''
+                            python3 -m venv venv
                             . venv/bin/activate
                             python -m pip install --upgrade pip
                             pip install -r requirements.txt
                             pip install flake8 bandit pytest
-                        """
+                        '''
                     } catch (Exception e) {
                         error "Failed to setup Python environment: ${e.message}"
                     }
@@ -72,11 +49,11 @@ pipeline {
             steps {
                 script {
                     try {
-                        sh """
+                        sh '''
                             . venv/bin/activate
                             mkdir -p test-results
                             python -m pytest tests/ --junitxml=test-results/junit.xml
-                        """
+                        '''
                     } catch (Exception e) {
                         unstable 'Tests failed'
                     }
@@ -93,10 +70,10 @@ pipeline {
             steps {
                 script {
                     try {
-                        sh """
+                        sh '''
                             . venv/bin/activate
                             flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-                        """
+                        '''
                     } catch (Exception e) {
                         unstable 'Linting failed'
                     }
@@ -108,11 +85,11 @@ pipeline {
             steps {
                 script {
                     try {
-                        sh """
+                        sh '''
                             . venv/bin/activate
                             mkdir -p reports
                             bandit -r . -ll -f json -o reports/security-report.json
-                        """
+                        '''
                     } catch (Exception e) {
                         unstable 'Security scan failed'
                     }
