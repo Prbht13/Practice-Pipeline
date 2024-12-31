@@ -1,2 +1,2 @@
 # Practice-Pipeline
-docker Practice project 
+this is a practice pipeline for docker
