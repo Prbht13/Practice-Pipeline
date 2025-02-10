@@ -1,2 +1,2 @@
 # Practice-Pipeline
-this is a repository for practicisng pipelien
+this is a repo for a practice pipeline
